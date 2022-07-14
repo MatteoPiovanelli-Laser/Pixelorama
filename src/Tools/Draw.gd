@@ -32,6 +32,7 @@ var _circle_tool_shortcut: PoolVector2Array
 func _ready() -> void:
 	Tools.connect("color_changed", self, "_on_Color_changed")
 	Global.brushes_popup.connect("brush_removed", self, "_on_Brush_removed")
+	_circle_tool_shortcut = PoolVector2Array()  # make sure this "cache" is clear
 
 
 func _on_BrushType_pressed() -> void:
@@ -131,6 +132,7 @@ func update_brush() -> void:
 			update_mirror_brush()
 	_indicator = _create_brush_indicator()
 	_polylines = _create_polylines(_indicator)
+	_circle_tool_shortcut = PoolVector2Array()  # make sure this "cache" is clear
 	$Brush/Type/Texture.texture = _brush_texture
 	$ColorInterpolation.visible = _brush.type in [Brushes.FILE, Brushes.RANDOM_FILE, Brushes.CUSTOM]
 
@@ -232,15 +234,15 @@ func _prepare_tool() -> void:
 
 
 func _prepare_circle_tool(fill: bool) -> void:
-	_circle_tool_shortcut = PoolVector2Array()
-	var circle_tool_map = _create_circle_indicator(_brush_size, fill)
-	# Go through that BitMap and build an Array of the "displacement" from the center of the bits
-	# that are true.
-	var diameter = 2 * _brush_size + 1
-	for n in range(0, diameter):
-		for m in range(0, diameter):
-			if circle_tool_map.get_bit(Vector2(m, n)):
-				_circle_tool_shortcut.append(Vector2(m - _brush_size, n - _brush_size))
+	if (_circle_tool_shortcut.empty()):
+		var circle_tool_map = _create_circle_indicator(_brush_size, fill)
+		# Go through that BitMap and build an Array of the "displacement" from the center of the bits
+		# that are true.
+		var diameter = 2 * _brush_size + 1
+		for n in range(0, diameter):
+			for m in range(0, diameter):
+				if circle_tool_map.get_bit(Vector2(m, n)):
+					_circle_tool_shortcut.append(Vector2(m - _brush_size, n - _brush_size))
 
 
 # Make sure to alway have invoked _prepare_tool() before this. This computes the coordinates to be
