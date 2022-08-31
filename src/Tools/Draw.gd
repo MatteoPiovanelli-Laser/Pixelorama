@@ -2,7 +2,7 @@ extends BaseTool
 
 var _brush := Brushes.get_default_brush()
 var _brush_size := 1
-var _cache_limit: int = 3
+var _cache_limit := 3
 var _brush_interpolate := 0
 var _brush_image := Image.new()
 var _brush_texture := ImageTexture.new()
@@ -32,7 +32,6 @@ var _circle_tool_shortcut: PoolVector2Array
 func _ready() -> void:
 	Tools.connect("color_changed", self, "_on_Color_changed")
 	Global.brushes_popup.connect("brush_removed", self, "_on_Brush_removed")
-	_circle_tool_shortcut = PoolVector2Array()  # make sure this "cache" is clear
 
 
 func _on_BrushType_pressed() -> void:
@@ -97,8 +96,8 @@ func get_config() -> Dictionary:
 
 
 func set_config(config: Dictionary) -> void:
-	var type = config.get("brush_type", _brush.type)
-	var index = config.get("brush_index", _brush.index)
+	var type: int = config.get("brush_type", _brush.type)
+	var index: int = config.get("brush_index", _brush.index)
 	_brush = Global.brushes_popup.get_brush(type, index)
 	_brush_size = config.get("brush_size", _brush_size)
 	_brush_interpolate = config.get("brush_interpolate", _brush_interpolate)
@@ -126,13 +125,12 @@ func update_brush() -> void:
 			if _brush.random.size() <= 1:
 				_brush_image = _create_blended_brush_image(_brush.image)
 			else:
-				var random = randi() % _brush.random.size()
+				var random := randi() % _brush.random.size()
 				_brush_image = _create_blended_brush_image(_brush.random[random])
 			_brush_texture.create_from_image(_brush_image, 0)
 			update_mirror_brush()
 	_indicator = _create_brush_indicator()
 	_polylines = _create_polylines(_indicator)
-	_circle_tool_shortcut = PoolVector2Array()  # make sure this "cache" is clear
 	$Brush/Type/Texture.texture = _brush_texture
 	$ColorInterpolation.visible = _brush.type in [Brushes.FILE, Brushes.RANDOM_FILE, Brushes.CUSTOM]
 
@@ -205,7 +203,7 @@ func commit_undo() -> void:
 
 func draw_tool(position: Vector2) -> void:
 	_prepare_tool()
-	var coords_to_draw = _draw_tool(position)
+	var coords_to_draw := _draw_tool(position)
 	for coord in coords_to_draw:
 		_set_pixel_no_cache(coord)
 
@@ -216,7 +214,9 @@ func _prepare_tool() -> void:
 	var strength := _strength
 	if Global.pressure_sensitivity_mode == Global.PressureSensitivity.ALPHA:
 		strength *= Tools.pen_pressure
-	_drawer.pixel_perfect = Tools.pixel_perfect if _brush_size == 1 else false
+	_drawer.pixel_perfect = false
+	if _brush_size == 1 and _brush.type == Brushes.PIXEL:
+		_drawer.pixel_perfect = Tools.pixel_perfect
 	_drawer.horizontal_mirror = Tools.horizontal_mirror
 	_drawer.vertical_mirror = Tools.vertical_mirror
 	_drawer.color_op.strength = strength
@@ -234,15 +234,15 @@ func _prepare_tool() -> void:
 
 
 func _prepare_circle_tool(fill: bool) -> void:
-	if (_circle_tool_shortcut.empty()):
-		var circle_tool_map = _create_circle_indicator(_brush_size, fill)
-		# Go through that BitMap and build an Array of the "displacement" from the center of the bits
-		# that are true.
-		var diameter = 2 * _brush_size + 1
-		for n in range(0, diameter):
-			for m in range(0, diameter):
-				if circle_tool_map.get_bit(Vector2(m, n)):
-					_circle_tool_shortcut.append(Vector2(m - _brush_size, n - _brush_size))
+	_circle_tool_shortcut = PoolVector2Array()
+	var circle_tool_map := _create_circle_indicator(_brush_size, fill)
+	# Go through that BitMap and build an Array of the "displacement" from the center of the bits
+	# that are true.
+	var diameter := _brush_size * 2 + 1
+	for n in range(0, diameter):
+		for m in range(0, diameter):
+			if circle_tool_map.get_bit(Vector2(m, n)):
+				_circle_tool_shortcut.append(Vector2(m - _brush_size, n - _brush_size))
 
 
 # Make sure to alway have invoked _prepare_tool() before this. This computes the coordinates to be
@@ -269,12 +269,12 @@ func draw_fill_gap(start: Vector2, end: Vector2) -> void:
 	var dy := int(-abs(end.y - start.y))
 	var err := dx + dy
 	var e2 := err << 1
-	var sx = 1 if start.x < end.x else -1
-	var sy = 1 if start.y < end.y else -1
-	var x = start.x
-	var y = start.y
+	var sx := 1 if start.x < end.x else -1
+	var sy := 1 if start.y < end.y else -1
+	var x := start.x
+	var y := start.y
 	_prepare_tool()
-	var coords_to_draw = {}
+	var coords_to_draw := {}
 	while !(x == end.x && y == end.y):
 		e2 = err << 1
 		if e2 >= dy:
@@ -297,7 +297,7 @@ func draw_tool_pixel(position: Vector2) -> void:
 
 # Compute the array of coordinates that should be drawn
 func _compute_draw_tool_pixel(position: Vector2) -> PoolVector2Array:
-	var result = PoolVector2Array()
+	var result := PoolVector2Array()
 	var start := position - Vector2.ONE * (_brush_size >> 1)
 	var end := start + Vector2.ONE * _brush_size
 	for y in range(start.y, end.y):
@@ -316,36 +316,36 @@ func draw_tool_circle(position: Vector2, fill := false) -> void:
 func _compute_draw_tool_circle(position: Vector2, fill := false) -> PoolVector2Array:
 	if _circle_tool_shortcut:
 		return _draw_tool_circle_from_map(position)
-	else:
-		var result = PoolVector2Array()
-		var r := _brush_size
-		var x := -r
-		var y := 0
-		var err := 2 - r * 2
-		var draw := true
-		if fill:
-			result.append(position)
-		while x < 0:
-			if draw:
-				for i in range(1 if fill else -x, -x + 1):
-					result.append(position + Vector2(-i, y))
-					result.append(position + Vector2(-y, -i))
-					result.append(position + Vector2(i, -y))
-					result.append(position + Vector2(y, i))
-			draw = not fill
-			r = err
-			if r <= y:
-				y += 1
-				err += y * 2 + 1
-				draw = true
-			if r > x || err > y:
-				x += 1
-				err += x * 2 + 1
-		return result
+
+	var result := PoolVector2Array()
+	var r := _brush_size
+	var x := -r
+	var y := 0
+	var err := 2 - r * 2
+	var draw := true
+	if fill:
+		result.append(position)
+	while x < 0:
+		if draw:
+			for i in range(1 if fill else -x, -x + 1):
+				result.append(position + Vector2(-i, y))
+				result.append(position + Vector2(-y, -i))
+				result.append(position + Vector2(i, -y))
+				result.append(position + Vector2(y, i))
+		draw = not fill
+		r = err
+		if r <= y:
+			y += 1
+			err += y * 2 + 1
+			draw = true
+		if r > x || err > y:
+			x += 1
+			err += x * 2 + 1
+	return result
 
 
 func _draw_tool_circle_from_map(position: Vector2) -> PoolVector2Array:
-	var result = PoolVector2Array()
+	var result := PoolVector2Array()
 	for displacement in _circle_tool_shortcut:
 		result.append(position + displacement)
 	return result
@@ -377,9 +377,7 @@ func draw_tool_brush(position: Vector2) -> void:
 		_draw_brush_image(mirror_brush_x, _flip_rect(src_rect, size, true, false), x_dst)
 		if Tools.vertical_mirror:
 			var xy_dst := Vector2(mirror_x, mirror_y)
-			var mirror_brush_xy: Image = remove_unselected_parts_of_brush(
-				_mirror_brushes.xy, xy_dst
-			)
+			var mirror_brush_xy := remove_unselected_parts_of_brush(_mirror_brushes.xy, xy_dst)
 			_draw_brush_image(mirror_brush_xy, _flip_rect(src_rect, size, true, true), xy_dst)
 	if Tools.vertical_mirror:
 		var y_dst := Vector2(dst.x, mirror_y)
@@ -399,7 +397,7 @@ func remove_unselected_parts_of_brush(brush: Image, dst: Vector2) -> Image:
 	for x in size.x:
 		for y in size.y:
 			var pos := Vector2(x, y) + dst
-			if !project.selection_bitmap.get_bit(pos):
+			if !project.selection_map.is_pixel_selected(pos):
 				new_brush.set_pixel(x, y, Color(0))
 	new_brush.unlock()
 	return new_brush
@@ -525,7 +523,6 @@ func _create_circle_indicator(size: int, fill := false) -> BitMap:
 	var bitmap := BitMap.new()
 	bitmap.create(Vector2.ONE * (size * 2 + 1))
 	var position := Vector2(size, size)
-
 	var r := size
 	var x := -r
 	var y := 0

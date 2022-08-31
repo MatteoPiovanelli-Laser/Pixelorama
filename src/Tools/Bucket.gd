@@ -145,7 +145,7 @@ func draw_start(position: Vector2) -> void:
 	Global.canvas.selection.transform_content_confirm()
 	if (
 		!Global.current_project.layers[Global.current_project.current_layer].can_layer_get_drawn()
-		or Global.current_project.tiles.get_nearest_tile(position).position != Vector2.ZERO
+		or !Rect2(Vector2.ZERO, Global.current_project.size).has_point(position)
 	):
 		return
 	if (
@@ -181,7 +181,7 @@ func fill_in_color(position: Vector2) -> void:
 		var selection: Image
 		var selection_tex := ImageTexture.new()
 		if project.has_selection:
-			selection = project.bitmap_to_image(project.selection_bitmap)
+			selection = project.selection_map
 		else:
 			selection = Image.new()
 			selection.create(project.size.x, project.size.y, false, Image.FORMAT_RGBA8)
